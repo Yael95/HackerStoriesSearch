@@ -1,6 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
-
+/***********************Custom Hooks */
+const useSemiPersistentData = (key, initialState) => {
+	const [value, setValue] = useState(localStorage.getItem(key) || initialState);
+	useEffect(() => {
+		localStorage.setItem(key, value);
+	}, [value, key]);
+	return [value, setValue];
+};
 const App = () => {
 	const stories = [
 		{
@@ -20,9 +27,9 @@ const App = () => {
 			objectID: 1,
 		},
 	];
-	/******************State definitions */
-	const [searchTerm, setSearchTerm] = useState("React");
-	/********************************** */
+
+	/******************State definitions (hooks) */
+	const [searchTerm, setSearchTerm] = useSemiPersistentData("search", "React");
 
 	/*********Utility & Callback Handlers */
 	const handleSearch = (event) => {
@@ -31,42 +38,46 @@ const App = () => {
 	const searchedStories = stories.filter((story) => {
 		return story.title.toLowerCase().includes(searchTerm.toLowerCase());
 	});
-	/************************************ */
+	/************************************JSX To be Rendered */
 
 	return (
 		<div>
 			<h1>My Hacker Stories</h1>
-			<Search search={searchTerm} onSearch={handleSearch} />
+			<InputwithLabel
+				id="search"
+				value={searchTerm}
+				onInputChange={handleSearch}>
+				<strong>Search :</strong>
+			</InputwithLabel>
 			<hr />
 			<List list={searchedStories} />
 		</div>
 	);
 };
-const Search = (props) => {
-	return (
-		<div>
-			<label htmlFor="search">Search :</label>
-			<input
-				type="text"
-				id="search"
-				value={props.search}
-				onChange={props.onSearch}
-			/>
-		</div>
-	);
-};
-const List = (props) =>
-	props.list.map((item) => {
-		return (
-			<div key={item.objectID}>
-				<span>
-					<a href={item.url}>{item.title}</a>
-				</span>
-				<span>{item.author}</span>
-				<span>{item.num_comments}</span>
-				<span>{item.points}</span>
-			</div>
-		);
-	});
+const InputwithLabel = ({
+	id,
+	children,
+	type = "text",
+	value,
+	onInputChange,
+}) => (
+	<>
+		<label htmlFor={id}>{children}</label>
+		<input type={type} id={id} value={value} onChange={onInputChange} />
+	</>
+);
 
+const List = ({ list }) =>
+	list.map((item) => <Item key={item.objectID} item={item} />);
+
+const Item = ({ item }) => (
+	<div>
+		<span>
+			<a href={item.url}>{item.title}</a>
+		</span>
+		<span>{item.author}</span>
+		<span>{item.num_comments}</span>
+		<span>{item.points}</span>
+	</div>
+);
 export default App;
