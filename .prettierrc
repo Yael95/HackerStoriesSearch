@@ -1,0 +1,6 @@
+{
+"editor.formatOnSave": true,
+	"useTabs": true,
+	"jsxBracketSameLine": true,
+	"arrowParens": "always"
+}
