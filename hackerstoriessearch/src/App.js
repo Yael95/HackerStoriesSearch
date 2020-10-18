@@ -5,7 +5,11 @@ import React, {
 	useReducer,
 	useCallback,
 } from "react";
+import axios from "axios";
 import "./App.css";
+import  List  from "./List";
+import { SearchForm } from "./SearchForm";
+
 /******************API */
 const API_ENDPOINT = "https://hn.algolia.com/api/v1/search?query=";
 
@@ -44,16 +48,26 @@ const storiesReducer = (state, action) => {
 };
 /***********************Custom Hooks */
 const useSemiPersistentData = (key, initialState) => {
+	const isMounted = useRef(false);
 	const [value, setValue] = useState(localStorage.getItem(key) || initialState);
 	useEffect(() => {
-		localStorage.setItem(key, value);
+		if (!isMounted.current) {
+			isMounted.current = true;
+		} else {
+			localStorage.setItem(key, value);
+		}
 	}, [value, key]);
 	return [value, setValue];
 };
+/*******************Function Utilities */
+
 /*******************App component */
 const App = () => {
 	/******************State definitions (hooks) */
-	const [searchTerm, setSearchTerm] = useSemiPersistentData("search", "React");
+	const [searchTerm, setSearchTerm] = useSemiPersistentData(
+		"search",
+		"Morocco"
+	);
 	const [stories, dispatchStories] = useReducer(storiesReducer, {
 		data: [],
 		isLoading: false,
@@ -62,17 +76,17 @@ const App = () => {
 	const [url, setUrl] = useState(`${API_ENDPOINT}${searchTerm}`);
 
 	/**********************UseEffect  */
-	const handleFetchStories = useCallback(() => {
+	const handleFetchStories = useCallback(async () => {
 		dispatchStories({ type: "STORIES_FETCH_INIT" });
-		fetch(url)
-			.then((response) => response.json())
-			.then((result) => {
-				dispatchStories({
-					type: "STORIES_FETCH_SUCCESS",
-					payload: result.hits,
-				});
-			})
-			.catch(() => dispatchStories({ type: "STORIES_FETCH_FAILURE" }));
+		try {
+			const result = await axios.get(url);
+			dispatchStories({
+				type: "STORIES_FETCH_SUCCESS",
+				payload: result.data.hits,
+			});
+		} catch {
+			dispatchStories({ type: "STORIES_FETCH_FAILURE" });
+		}
 	}, [url]);
 	useEffect(() => {
 		handleFetchStories();
@@ -82,8 +96,9 @@ const App = () => {
 		setSearchTerm(event.target.value);
 	};
 
-	const handleSearchSubmit = () => {
+	const handleSearchSubmit = (event) => {
 		setUrl(`${API_ENDPOINT}${searchTerm}`);
+		event.preventDefault();
 	};
 
 	const handleRemoveStory = (item) => {
@@ -92,19 +107,14 @@ const App = () => {
 	/************************************JSX To be Rendered */
 
 	return (
-		<div>
-			<h1>My Hacker Stories</h1>
-			<InputwithLabel
-				id="search"
-				value={searchTerm}
-				isFocused
-				onInputChange={handleSearchInput}>
-				<strong>Search :</strong>
-			</InputwithLabel>
-			<button type="button" disabled={!searchTerm} onClick={handleSearchSubmit}>
-				Submit
-			</button>
-			<hr />
+		<div className="container">
+			<h1 className="headlinePrimary">My Hacker Stories</h1>
+			<SearchForm
+				searchTerm={searchTerm}
+				onSearchInput={handleSearchInput}
+				onSearchSubmit={handleSearchSubmit}
+			/>
+
 			{stories.isError && <p>Something went Wrong...</p>}
 			{stories.isLoading ? (
 				<p>Loading Data ....</p>
@@ -115,7 +125,7 @@ const App = () => {
 	);
 };
 /*************Other Components */
-const InputwithLabel = ({
+export const InputwithLabel = ({
 	id,
 	children,
 	type = "text",
@@ -131,41 +141,20 @@ const InputwithLabel = ({
 	}, [isFocused]);
 	return (
 		<>
-			<label htmlFor={id}>{children}</label>
+			<label htmlFor={id} className="label">
+				{children}
+			</label>
 			&nbsp;
 			<input
 				ref={inputRef}
 				type={type}
 				id={id}
 				value={value}
+				className="input"
 				autoFocus={isFocused}
 				onChange={onInputChange}
 			/>
 		</>
-	);
-};
-
-const List = ({ list, onRemoveItem }) =>
-	list.map((item) => (
-		<Item key={item.objectID} item={item} onRemoveItem={onRemoveItem} />
-	));
-
-const Item = ({ item, onRemoveItem }) => {
-	const handleRemoveItem = () => {
-		onRemoveItem(item);
-	};
-	return (
-		<div>
-			<span>
-				<a href={item.url}>{item.title}</a>
-			</span>
-			<span>{item.author}</span>
-			<span>{item.num_comments}</span>
-			<span>{item.points}</span>
-			<button type="button" onClick={handleRemoveItem}>
-				Dismiss
-			</button>
-		</div>
 	);
 };
 export default App;
